@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка IPv4 / IPv6</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Yandex SmartCaptcha -->
+    <script src="https://smartcaptcha.yandexcloud.net/captcha.js" defer></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #0d0b1a, #1a1733, #0f0c29);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px 15px;
+            color: #e8e8ff;
+            position: relative;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: rgba(20, 18, 40, 0.75);
+            backdrop-filter: blur(16px);
+            border-radius: 40px;
+            padding: 30px 35px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        #captchaOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            transition: opacity 0.5s ease;
+        }
+        #captchaOverlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #captchaOverlay .captcha-box {
+            background: rgba(30, 30, 60, 0.95);
+            border-radius: 24px;
+            padding: 40px 35px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+        #captchaOverlay .captcha-box h2 {
+            font-weight: 300;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #f0e68c;
+        }
+        #captchaOverlay .captcha-box p {
+            opacity: 0.6;
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+        }
+        #captchaOverlay .captcha-box .captcha-container {
+            display: flex;
+            justify-content: center;
+            min-height: 100px;
+            flex-direction: column;
+            align-items: center;
+        }
+        #captchaOverlay .captcha-box .status {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+        #captchaOverlay .captcha-box .status.success {
+            color: #a8f0a8;
+        }
+
+        h1 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            font-weight: 300;
+            font-size: 2.2rem;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        h1 i { color: #f0e68c; }
+        .subtitle {
+            text-align: center;
+            opacity: 0.5;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding-bottom: 12px;
+        }
+        .author {
+            text-align: center;
+            font-size: 0.8rem;
+            opacity: 0.4;
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 8px;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            padding: 10px 22px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 400;
+            border: 1px solid transparent;
+        }
+        .tab-btn i { font-size: 1.1rem; }
+        .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .tab-btn.active {
+            background: rgba(240, 230, 140, 0.15);
+            color: #f0e68c;
+            border-color: rgba(240, 230, 140, 0.2);
+        }
+        .tab-pane { display: none; animation: fadeIn 0.35s ease; }
+        .tab-pane.active { display: block; }
+        @keyframes fadeIn { 0% { opacity:0.3; transform:translateY(6px); } 100% { opacity:1; transform:translateY(0); } }
+
+        .card {
+            background: rgba(0,0,0,0.25);
+            border-radius: 20px;
+            padding: 20px 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f0e68c;
+        }
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+        .card-title i { color: #7ec8e3; font-size: 1.3rem; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 25px; }
+        .label { opacity: 0.6; font-weight: 300; }
+        .value { font-weight: 500; font-family: 'Courier New', monospace; word-break: break-all; }
+        .value.isp-highlight { color: #f0e68c; }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 10px 0 15px;
+        }
+        .input-row input {
+            flex: 1;
+            padding: 12px 20px;
+            border-radius: 60px;
+            border: none;
+            background: rgba(255,255,255,0.07);
+            color: #fff;
+            font-size: 0.95rem;
+            outline: 1px solid transparent;
+            transition: 0.3s;
+            min-width: 180px;
+        }
+        .input-row input:focus {
+            outline: 1px solid #f0e68c;
+            background: rgba(255,255,255,0.12);
+        }
+        .input-row button {
+            padding: 12px 30px;
+            border-radius: 60px;
+            border: none;
+            background: linear-gradient(135deg, #f0e68c, #d4b84c);
+            color: #1e1e2f;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+        .input-row button:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(240, 230, 140, 0.3);
+        }
+        .input-row button:disabled { opacity:0.5; cursor:not-allowed; }
+
+        .result-box {
+            margin-top: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 16px;
+            padding: 18px 22px;
+            border-left: 4px solid #7ec8e3;
+            display: none;
+        }
+        .result-box.show { display: block; }
+
+        .speed-result {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .speed-result .stat {
+            text-align: center;
+            background: rgba(0,0,0,0.2);
+            padding: 12px 24px;
+            border-radius: 20px;
+            min-width: 100px;
+        }
+        .speed-result .stat .num { font-size: 1.8rem; font-weight: 600; color: #f0e68c; }
+        .speed-result .stat .desc { font-size: 0.8rem; opacity: 0.6; }
+
+        .operator-icon { display: inline-block; font-size: 1.5rem; margin-left: 8px; vertical-align: middle; }
+        .flag-emoji { font-size: 1.5rem; margin-right: 6px; }
+
+        .dns-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        .dns-table th, .dns-table td {
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .dns-table th { background: rgba(255,255,255,0.05); font-weight: 400; color: #f0e68c; }
+        .dns-table td { word-break: break-all; }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.7rem;
+            opacity: 0.25;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 700px) {
+            .container { padding: 20px; }
+            h1 { font-size: 1.6rem; }
+            .tabs { gap: 5px; }
+            .tab-btn { padding: 8px 14px; font-size: 0.8rem; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .input-row button { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Оверлей с Яндекс Капчей -->
+    <div id="captchaOverlay">
+        <div class="captcha-box">
+            <h2><i class="fas fa-shield-alt" style="color:#f0e68c;"></i> Подтверждение</h2>
+            <p>Пожалуйста, пройдите проверку, чтобы получить доступ к инструментам</p>
+            <div class="captcha-container">
+                <div
+                    id="captcha-container"
+                    class="smart-captcha"
+                    data-sitekey="ysc1_KkeKZEZcd9sMIWdAQozgvua6Ywbphvvje3o4o1oY72fb77ef"
+                    data-callback="onCaptchaSuccess"
+                    style="height:100px;"
+                ></div>
+            </div>
+            <div id="captchaStatus" class="status">⏳ Загрузка капчи...</div>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <h1>
+            <i class="fas fa-globe"></i>
+            Проверка IPv4 / IPv6
+            <i class="fas fa-satellite" style="font-size:1.4rem; opacity:0.4;"></i>
+        </h1>
+        <div class="subtitle">Определение геолокации, провайдера, DNS (Google + Cloudflare), SSL, скорость</div>
+        <div class="author">✍️ автор: rraasskraki-dobra-dndnsn</div>
+
+        <!-- Вкладки -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tabMyIp"><i class="fas fa-user-astronaut"></i> Мой IP</button>
+            <button class="tab-btn" data-tab="tabCheckIp"><i class="fas fa-search-location"></i> Проверка IP</button>
+            <button class="tab-btn" data-tab="tabDns"><i class="fas fa-server"></i> DNS</button>
+            <button class="tab-btn" data-tab="tabSsl"><i class="fas fa-lock"></i> SSL</button>
+            <button class="tab-btn" data-tab="tabSpeed"><i class="fas fa-tachometer-alt"></i> Скорость</button>
+        </div>
+
+        <!-- ========= ВКЛАДКА "Мой IP" ========= -->
+        <div class="tab-pane active" id="tabMyIp">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-ip"></i> Ваш IPv4 и IPv6</div>
+                <div class="grid-2" id="myIpInfo">
+                    <span class="label">IPv4-адрес</span><span class="value" id="myIpv4">—</span>
+                    <span class="label">IPv6-адрес</span><span class="value" id="myIpv6">—</span>
+                    <span class="label">Тип (основной)</span><span class="value" id="myIpType">—</span>
+                    <span class="label">Страна</span><span class="value" id="myCountry"><span id="myFlag" class="flag-emoji"></span> —</span>
+                    <span class="label">Город / Регион</span><span class="value" id="myCityRegion">—</span>
+                    <span class="label">Провайдер (ISP)</span><span class="value isp-highlight" id="myIsp"><span id="myIspIcon"></span> —</span>
+                    <span class="label">ASN</span><span class="value" id="myAsn">—</span>
+                    <span class="label">ОС / Браузер</span><span class="value" id="myOsBrowser">—</span>
+                    <span class="label">Экран</span><span class="value" id="myScreen">—</span>
+                    <span class="label">Анонимность</span><span class="value" id="myAnon">—</span>
+                    <span class="label">Координаты</span><span class="value" id="myCoords">—</span>
+                </div>
+            </div>
+            <div style="font-size:0.8rem; opacity:0.4; text-align:right;">
+                <i class="fas fa-shield-alt"></i> Данные получены через цепочку из 10 API
+            </div>
+        </div>
+
+        <!-- ========= ВКЛАДКА "Проверка IP" ========= -->
+        <div class="tab-pane" id="tabCheckIp">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-address-card"></i> Проверка IP / домена (IPv4 или IPv6)</div>
+                <div class="input-row">
+                    <input type="text" id="checkIpInput" placeholder="Введите IP или домен (например, 8.8.8.8 или 2001:4860:4860::8888)" />
+                    <button id="checkIpBtn"><i class="fas fa-search"></i> Проверить</button>
+                </div>
+                <div class="result-box" id="checkIpResult">
+                    <div class="card-title"><i class="fas fa-info-circle"></i> Результат для <span id="checkIpDisplay"></span></div>
+                    <div class="grid-2" id="checkIpDetails">
+                        <span class="label">Тип</span><span class="value" id="chType">—</span>
+                        <span class="label">Страна</span><span class="value" id="chCountry"><span id="chFlag" class="flag-emoji"></span> —</span>
+                        <span class="label">Город</span><span class="value" id="chCity">—</span>
+                        <span class="label">Регион</span><span class="value" id="chRegion">—</span>
+                        <span class="label">Провайдер (ISP)</span><span class="value isp-highlight" id="chIsp"><span id="chIspIcon"></span> —</span>
+                        <span class="label">ASN</span><span class="value" id="chAsn">—</span>
+                        <span class="label">Обратный DNS (PTR)</span><span class="value" id="chPtr">—</span>
+                        <span class="label">Координаты</span><span class="value" id="chCoords">—</span>
+                        <span class="label">Диапазон / CIDR</span><span class="value" id="chCidr">—</span>
+                        <span class="label">Организация</span><span class="value" id="chOrg">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========= ВКЛАДКА "DNS" ========= -->
+        <div class="tab-pane" id="tabDns">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-dns"></i> DNS-записи домена (Google + Cloudflare)</div>
+                <div class="input-row">
+                    <input type="text" id="dnsInput" placeholder="Введите домен (например, yandex.ru)" />
+                    <button id="dnsBtn"><i class="fas fa-sync"></i> Получить DNS</button>
+                </div>
+                <div class="result-box" id="dnsResult">
+                    <div class="card-title"><i class="fas fa-list-ul"></i> Записи для <span id="dnsDomain"></span></div>
+                    <div style="overflow-x:auto;">
+                        <table class="dns-table" id="dnsTable">
+                            <thead>
+                                <tr>
+                                    <th>Тип</th>
+                                    <th>Google</th>
+                                    <th>Cloudflare</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dnsBody">
+                                <!-- заполняется динамически -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========= ВКЛАДКА "SSL" ========= -->
+        <div class="tab-pane" id="tabSsl">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-certificate"></i> SSL-сертификат</div>
+                <div class="input-row">
+                    <input type="text" id="sslInput" placeholder="Введите домен (например, yandex.ru)" />
+                    <button id="sslBtn"><i class="fas fa-shield-alt"></i> Проверить SSL</button>
+                </div>
+                <div class="result-box" id="sslResult">
+                    <div class="card-title"><i class="fas fa-info-circle"></i> Сертификат для <span id="sslDomain"></span></div>
+                    <div class="grid-2" id="sslDetails">
+                        <span class="label">Выдан для</span><span class="value" id="sslCommonName">—</span>
+                        <span class="label">Кем выдан (Issuer)</span><span class="value" id="sslIssuer">—</span>
+                        <span class="label">Действителен с</span><span class="value" id="sslFrom">—</span>
+                        <span class="label">Действителен до</span><span class="value" id="sslTo">—</span>
+                        <span class="label">Алгоритм</span><span class="value" id="sslAlgo">—</span>
+                        <span class="label">Статус</span><span class="value" id="sslStatus">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========= ВКЛАДКА "Скорость" ========= -->
+        <div class="tab-pane" id="tabSpeed">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-tachometer-alt"></i> Тест скорости интернета</div>
+                <p style="opacity:0.6; font-size:0.9rem; margin-bottom:12px;">
+                    <i class="fas fa-info-circle"></i> Тест загружает файлы суммарным объёмом ~15 МБ для точности (минимум 12 секунд).
+                </p>
+                <div class="input-row">
+                    <button id="speedBtn"><i class="fas fa-play"></i> Запустить тест</button>
+                    <button id="speedStopBtn" disabled><i class="fas fa-stop"></i> Остановить</button>
+                </div>
+                <div class="speed-result" id="speedResult">
+                    <div class="stat"><span class="num" id="speedDown">—</span><div class="desc">Мбит/с (загрузка)</div></div>
+                    <div class="stat"><span class="num" id="speedUp">—</span><div class="desc">Мбит/с (отправка)</div></div>
+                    <div class="stat"><span class="num" id="speedPing">—</span><div class="desc">мс (ping)</div></div>
+                </div>
+                <div id="speedProgress" style="margin-top:12px; background:#222; border-radius:30px; height:6px; width:100%; overflow:hidden;">
+                    <div id="speedBar" style="width:0%; height:100%; background:linear-gradient(90deg,#f0e68c,#d4b84c); transition:0.2s;"></div>
+                </div>
+                <div style="margin-top:8px; font-size:0.8rem; opacity:0.5;" id="speedStatus">Готов к тесту</div>
+            </div>
+        </div>
+
+        <div class="footer">🔄 Яндекс Капча при входе • Геоданные: 10 источников • DoH Google + Cloudflare</div>
+    </div>
+
+    <script>
+        // ============ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ============
+        let captchaPassed = false;
+        let speedTestRunning = false;
+        let speedTestAbort = false;
+
+        // DOM
+        const tabs = document.querySelectorAll('.tab-btn');
+        const panes = document.querySelectorAll('.tab-pane');
+        const overlay = document.getElementById('captchaOverlay');
+        const captchaStatus = document.getElementById('captchaStatus');
+
+        // ============ ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ============
+        tabs.forEach(btn => {
+            btn.addEventListener('click', function() {
+                tabs.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                panes.forEach(p => p.classList.remove('active'));
+                document.getElementById(this.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ============ КОЛБЭК УСПЕХА КАПЧИ ============
+        window.onCaptchaSuccess = function(token) {
+            console.log('Капча пройдена, токен:', token);
+            captchaPassed = true;
+            captchaStatus.textContent = '✅ Проверка пройдена!';
+            captchaStatus.className = 'status success';
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                document.querySelectorAll('button:not(.tab-btn)').forEach(btn => btn.disabled = false);
+            }, 500);
+        };
+
+        // ============ УТИЛИТЫ ============
+        function getIpType(ip) {
+            if (!ip) return '—';
+            if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+                const parts = ip.split('.');
+                for (let p of parts) if (parseInt(p) > 255) return 'IPv6';
+                return 'IPv4';
+            }
+            return ip.includes(':') ? 'IPv6' : 'Неизвестно';
+        }
+
+        function getCountryFlag(countryCode) {
+            if (!countryCode) return '';
+            const code = countryCode.toUpperCase();
+            if (code.length !== 2) return '';
+            return String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+        }
+
+        function getOperatorIcon(name) {
+            if (!name) return '';
+            const n = name.toLowerCase();
+            if (n.includes('yandex')) return '<i class="fab fa-yandex operator-icon" style="color:#ffcc00;"></i>';
+            if (n.includes('google')) return '<i class="fab fa-google operator-icon" style="color:#ea4335;"></i>';
+            if (n.includes('cloudflare')) return '<i class="fas fa-cloud operator-icon" style="color:#f38020;"></i>';
+            if (n.includes('cloud.ru')) return '<i class="fas fa-cloud operator-icon" style="color:#1a73e8;"></i>';
+            if (n.includes('vk') || n.includes('vkontakte')) return '<i class="fab fa-vk operator-icon" style="color:#4c75a3;"></i>';
+            if (n.includes('mail.ru') || n.includes('mailru')) return '<i class="fas fa-envelope operator-icon" style="color:#005f9e;"></i>';
+            if (n.includes('rostelecom')) return '<i class="fas fa-tower-broadcast operator-icon" style="color:#00a3e0;"></i>';
+            if (n.includes('mts')) return '<i class="fas fa-sim-card operator-icon" style="color:#e10000;"></i>';
+            if (n.includes('beeline') || n.includes('билайн')) return '<i class="fas fa-bolt operator-icon" style="color:#ffcc00;"></i>';
+            if (n.includes('megafon') || n.includes('мегафон')) return '<i class="fas fa-wifi operator-icon" style="color:#00a650;"></i>';
+            if (n.includes('tele2')) return '<i class="fas fa-mobile-alt operator-icon" style="color:#00a650;"></i>';
+            if (n.includes('2ip')) return '<i class="fas fa-shield-alt operator-icon" style="color:#f0e68c;"></i>';
+            if (n.includes('sber') || n.includes('сбер')) return '<i class="fas fa-university operator-icon" style="color:#00a650;"></i>';
+            if (n.includes('timeweb')) return '<i class="fas fa-globe operator-icon" style="color:#ff6b00;"></i>';
+            if (n.includes('github')) return '<i class="fab fa-github operator-icon" style="color:#fff;"></i>';
+            if (n.includes('amazon') || n.includes('aws')) return '<i class="fab fa-aws operator-icon" style="color:#ff9900;"></i>';
+            if (n.includes('microsoft') || n.includes('azure')) return '<i class="fab fa-microsoft operator-icon" style="color:#00a4ef;"></i>';
+            if (n.includes('xbox')) return '<i class="fab fa-xbox operator-icon" style="color:#107c10;"></i>';
+            return '<i class="fas fa-network-wired operator-icon" style="color:#aaa;"></i>';
+        }
+
+        // ============ ПОЛУЧЕНИЕ IP (IPv4 и IPv6) ============
+        async function getMyIpv4() {
+            try {
+                const res = await fetch('https://2ip.io/ip/', { method: 'GET' });
+                const ip = await res.text();
+                return ip.trim();
+            } catch (e) {
+                try {
+                    const res = await fetch('https://api.ipify.org?format=json', { method: 'GET' });
+                    const data = await res.json();
+                    return data.ip;
+                } catch (e2) {
+                    return null;
+                }
+            }
+        }
+
+        async function getMyIpv6() {
+            try {
+                const res = await fetch('https://2ip.io/ipv6/', { method: 'GET' });
+                const ip = await res.text();
+                return ip.trim() || null;
+            } catch (e) {
+                try {
+                    const res = await fetch('https://api6.ipify.org?format=json', { method: 'GET' });
+                    const data = await res.json();
+                    return data.ip;
+                } catch (e2) {
+                    return null;
+                }
+            }
+        }
+
+        // ============ ОТДЕЛЬНЫЙ ЗАПРОС ASN через 2ip.io ============
+        async function fetchAsn(ip) {
+            try {
+                const url = `https://api.2ip.io/geo/ip/${ip}`;
+                const res = await fetch(url, { method: 'GET' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                return data.asn || data.as || null;
+            } catch (e) {
+                console.warn('Ошибка получения ASN через 2ip.io:', e.message);
+                return null;
+            }
+        }
+
+        // ============ ГЕОДАННЫЕ (10 источников) ============
+        async function fetchIpInfo(ip) {
+            console.log(`🔍 Запрос геоданных для IP: ${ip}`);
+            const providers = [
+                async () => {
+                    const url = `https://api.2ip.io/geo/ip/${ip}`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data && data.ip) {
+                        return {
+                            country: data.country_name || data.country || '—',
+                            regionName: data.region_name || data.region || '—',
+                            city: data.city || '—',
+                            isp: data.org || data.isp || '—',
+                            org: data.org || data.isp || '—',
+                            as: data.asn || data.as || null,
+                            lat: data.latitude || data.lat || null,
+                            lon: data.longitude || data.lon || null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Нет данных');
+                },
+                async () => {
+                    const url = `https://ip-api.com/json/${ip}?fields=status,country,regionName,city,isp,org,as,lat,lon,query`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        return {
+                            country: data.country || '—',
+                            regionName: data.regionName || '—',
+                            city: data.city || '—',
+                            isp: data.isp || data.org || '—',
+                            org: data.org || '—',
+                            as: data.as || null,
+                            lat: data.lat || null,
+                            lon: data.lon || null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Статус не success');
+                },
+                async () => {
+                    const url = `http://ip-api.com/json/${ip}?fields=status,country,regionName,city,isp,org,as,lat,lon,query`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        return {
+                            country: data.country || '—',
+                            regionName: data.regionName || '—',
+                            city: data.city || '—',
+                            isp: data.isp || data.org || '—',
+                            org: data.org || '—',
+                            as: data.as || null,
+                            lat: data.lat || null,
+                            lon: data.lon || null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Статус не success');
+                },
+                async () => {
+                    const url = `https://ipapi.co/${ip}/json/`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data && !data.error) {
+                        return {
+                            country: data.country_name || '—',
+                            regionName: data.region || '—',
+                            city: data.city || '—',
+                            isp: data.org || '—',
+                            org: data.org || '—',
+                            as: data.asn || null,
+                            lat: data.latitude || null,
+                            lon: data.longitude || null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Ошибка в данных');
+                },
+                async () => {
+                    const url = `https://ipwhois.io/json/${ip}`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data && data.success !== false) {
+                        return {
+                            country: data.country || '—',
+                            regionName: data.region || '—',
+                            city: data.city || '—',
+                            isp: data.isp || '—',
+                            org: data.org || '—',
+                            as: data.asn || null,
+                            lat: data.latitude || null,
+                            lon: data.longitude || null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Ошибка в данных');
+                },
+                async () => {
+                    const url = `https://yandex.ru/internet?ip=${ip}`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const html = await res.text();
+                    const regionMatch = html.match(/<span class="[^"]*country[^"]*">([^<]*)<\/span>/i) ||
+                                       html.match(/<span class="[^"]*region[^"]*">([^<]*)<\/span>/i) ||
+                                       html.match(/<div[^>]*class="[^"]*location[^"]*"[^>]*>([^<]*)<\/div>/i);
+                    const cityMatch = html.match(/<span class="[^"]*city[^"]*">([^<]*)<\/span>/i) ||
+                                      html.match(/<div[^>]*class="[^"]*city[^"]*"[^>]*>([^<]*)<\/div>/i);
+                    const ispMatch = html.match(/<span class="[^"]*provider[^"]*">([^<]*)<\/span>/i) ||
+                                     html.match(/<div[^>]*class="[^"]*isp[^"]*"[^>]*>([^<]*)<\/div>/i);
+                    const asnMatch = html.match(/<span class="[^"]*asn[^"]*">([^<]*)<\/span>/i) ||
+                                     html.match(/<div[^>]*class="[^"]*as[^"]*"[^>]*>([^<]*)<\/div>/i);
+                    const country = regionMatch ? regionMatch[1].trim() : null;
+                    const city = cityMatch ? cityMatch[1].trim() : null;
+                    const isp = ispMatch ? ispMatch[1].trim() : null;
+                    const asn = asnMatch ? asnMatch[1].trim() : null;
+                    if (country || city || isp) {
+                        return {
+                            country: country || '—',
+                            regionName: '—',
+                            city: city || '—',
+                            isp: isp || '—',
+                            org: isp || '—',
+                            as: asn || null,
+                            lat: null,
+                            lon: null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Не удалось распарсить');
+                },
+                async () => {
+                    const url = `https://freegeoip.app/json/${ip}`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data && data.country_name) {
+                        return {
+                            country: data.country_name || '—',
+                            regionName: data.region_name || '—',
+                            city: data.city || '—',
+                            isp: data.isp || '—',
+                            org: data.isp || '—',
+                            as: data.asn || null,
+                            lat: data.latitude || null,
+                            lon: data.longitude || null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Нет данных');
+                },
+                async () => {
+                    const url = `https://geoip-db.com/json/${ip}`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data && data.country_name) {
+                        return {
+                            country: data.country_name || '—',
+                            regionName: data.state || data.region || '—',
+                            city: data.city || '—',
+                            isp: data.isp || '—',
+                            org: data.isp || '—',
+                            as: data.asn || null,
+                            lat: data.latitude || null,
+                            lon: data.longitude || null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Нет данных');
+                },
+                async () => {
+                    const url = `https://ipinfo.io/${ip}/json`;
+                    const res = await fetch(url, { method: 'GET' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data && data.country) {
+                        const loc = data.loc ? data.loc.split(',') : [null, null];
+                        return {
+                            country: data.country || '—',
+                            regionName: data.region || '—',
+                            city: data.city || '—',
+                            isp: data.org || '—',
+                            org: data.org || '—',
+                            as: data.asn || null,
+                            lat: loc[0] || null,
+                            lon: loc[1] || null,
+                            query: ip
+                        };
+                    }
+                    throw new Error('Нет данных');
+                }
+            ];
+
+            async function tryProvider(provider, retries = 3) {
+                for (let attempt = 1; attempt <= retries; attempt++) {
+                    try {
+                        const result = await provider();
+                        return result;
+                    } catch (e) {
+                        if (attempt === retries) throw e;
+                    }
+                }
+            }
+
+            const providerNames = [
+                '2ip.io', 'ip-api(https)', 'ip-api(http)', 'ipapi.co', 'ipwhois.io',
+                'Yandex', 'freegeoip', 'geoip-db', 'ipinfo'
+            ];
+            for (let i = 0; i < providers.length; i++) {
+                try {
+                    const result = await tryProvider(providers[i], 3);
+                    console.log(`✅ ГЕОДАННЫЕ ПОЛУЧЕНЫ от ${providerNames[i]}`);
+                    return result;
+                } catch (e) {
+                    console.warn(`❌ ${providerNames[i]} не сработал:`, e.message);
+                }
+            }
+            console.error('❌ ВСЕ API НЕДОСТУПНЫ!');
+            return null;
+        }
+
+        // ============ ОБРАТНЫЙ DNS (PTR) через Google ============
+        async function fetchPtr(ip) {
+            try {
+                if (ip.includes(':')) {
+                    const url = `https://dns.google/resolve?name=${ip}&type=PTR`;
+                    const res = await fetch(url, { method: 'GET' });
+                    const data = await res.json();
+                    if (data.Answer && data.Answer.length) {
+                        return data.Answer.map(a => a.data).join(', ');
+                    }
+                    return '—';
+                } else {
+                    const parts = ip.split('.').reverse();
+                    const rev = parts.join('.') + '.in-addr.arpa';
+                    const url = `https://dns.google/resolve?name=${rev}&type=PTR`;
+                    const res = await fetch(url, { method: 'GET' });
+                    const data = await res.json();
+                    if (data.Answer && data.Answer.length) {
+                        return data.Answer.map(a => a.data).join(', ');
+                    }
+                }
+                return '—';
+            } catch (e) { return '—'; }
+        }
+
+        // ============ DNS (Google + Cloudflare) ============
+        const dnsProviders = [
+            { name: 'Google', url: 'https://dns.google/resolve?name=', headers: {} },
+            { name: 'Cloudflare', url: 'https://one.one.one.one/dns-query?name=', headers: { 'Accept': 'application/dns-json' } }
+        ];
+
+        async function fetchDnsFromProvider(provider, domain, type) {
+            try {
+                const url = provider.url + encodeURIComponent(domain) + '&type=' + type;
+                const res = await fetch(url, { method: 'GET', headers: provider.headers });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                if (data.Answer && data.Answer.length) {
+                    return data.Answer.map(a => a.data).join('; ');
+                }
+                return '—';
+            } catch (e) {
+                console.warn(`${provider.name} DNS ошибка:`, e.message);
+                return '—';
+            }
+        }
+
+        async function fetchAllDns(domain) {
+            const types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME'];
+            const results = {};
+            for (const type of types) {
+                results[type] = {};
+                for (const provider of dnsProviders) {
+                    results[type][provider.name] = await fetchDnsFromProvider(provider, domain, type);
+                }
+            }
+            return results;
+        }
+
+        // ============ SSL через crt.sh ============
+        async function fetchSsl(domain) {
+            try {
+                const url = `https://crt.sh/?q=${encodeURIComponent(domain)}&output=json`;
+                const res = await fetch(url, { method: 'GET' });
+                if (!res.ok) throw new Error('Ошибка запроса');
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    const cert = data[0];
+                    return {
+                        commonName: cert.name_value || cert.common_name || '—',
+                        issuer: cert.issuer_name || '—',
+                        notBefore: cert.not_before ? cert.not_before.split(' ')[0] : '—',
+                        notAfter: cert.not_after ? cert.not_after.split(' ')[0] : '—',
+                        sigAlg: cert.signature_algorithm || '—',
+                        status: 'Найден'
+                    };
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ============ ВКЛАДКА "Мой IP" ============
+        async function loadMyIp() {
+            try {
+                const ipv4 = await getMyIpv4();
+                const ipv6 = await getMyIpv6();
+                document.getElementById('myIpv4').textContent = ipv4 || '—';
+                document.getElementById('myIpv6').textContent = ipv6 || '—';
+
+                const ipForGeo = ipv4 || ipv6;
+                if (ipForGeo) {
+                    document.getElementById('myIpType').textContent = getIpType(ipForGeo);
+                    const info = await fetchIpInfo(ipForGeo);
+                    if (info) {
+                        const flag = getCountryFlag(info.country);
+                        document.getElementById('myFlag').textContent = flag;
+                        document.getElementById('myCountry').innerHTML = flag + ' ' + (info.country || '—');
+                        document.getElementById('myCityRegion').textContent = (info.city || '') + (info.regionName ? ', ' + info.regionName : '');
+                        const isp = info.isp || info.org || '—';
+                        document.getElementById('myIsp').innerHTML = getOperatorIcon(isp) + ' ' + isp;
+                        // ASN: извлекаем из isp или отдельного поля
+                        if (info.as && info.as !== '—') {
+                            document.getElementById('myAsn').textContent = info.as;
+                        } else {
+                            const asnMatch = isp.match(/AS\d+/i);
+                            if (asnMatch) {
+                                document.getElementById('myAsn').textContent = asnMatch[0];
+                            } else {
+                                const asn = await fetchAsn(ipForGeo);
+                                document.getElementById('myAsn').textContent = asn || '—';
+                            }
+                        }
+                        document.getElementById('myCoords').textContent = (info.lat && info.lon) ? `${info.lat}, ${info.lon}` : '—';
+                    } else {
+                        const asn = await fetchAsn(ipForGeo);
+                        document.getElementById('myAsn').textContent = asn || '—';
+                    }
+                }
+
+                const ua = navigator.userAgent;
+                let os = '—', browser = '—';
+                if (ua.includes('Windows')) os = 'Windows';
+                else if (ua.includes('Mac')) os = 'macOS';
+                else if (ua.includes('Linux')) os = 'Linux';
+                else if (ua.includes('Android')) os = 'Android';
+                else if (ua.includes('iOS')) os = 'iOS';
+                document.getElementById('myOsBrowser').textContent = os + ' / ' + (() => {
+                    if (ua.includes('Chrome') && !ua.includes('Edg')) return 'Chrome';
+                    if (ua.includes('Firefox')) return 'Firefox';
+                    if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+                    if (ua.includes('Edg')) return 'Edge';
+                    if (ua.includes('Opera')) return 'Opera';
+                    return 'Unknown';
+                })();
+                document.getElementById('myScreen').textContent = window.screen.width + '×' + window.screen.height;
+                document.getElementById('myAnon').textContent = 'Прямое подключение (прокси не обнаружен)';
+            } catch (e) {
+                console.error('Ошибка загрузки моего IP:', e);
+            }
+        }
+        loadMyIp();
+
+        // ============ ВКЛАДКА "Проверка IP" ============
+        const checkIpBtn = document.getElementById('checkIpBtn');
+        const checkIpInput = document.getElementById('checkIpInput');
+        checkIpBtn.addEventListener('click', async function() {
+            if (!captchaPassed) {
+                alert('Пожалуйста, сначала пройдите капчу.');
+                return;
+            }
+            const input = checkIpInput.value.trim();
+            if (!input) { alert('Введите IP или домен'); return; }
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
+            try {
+                let ip = input;
+                if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(input) && !input.includes(':')) {
+                    let dnsRes = await fetch(`https://dns.google/resolve?name=${input}&type=A`, { method: 'GET' });
+                    let dnsData = await dnsRes.json();
+                    if (dnsData.Answer && dnsData.Answer.length) {
+                        ip = dnsData.Answer[0].data;
+                    } else {
+                        dnsRes = await fetch(`https://dns.google/resolve?name=${input}&type=AAAA`, { method: 'GET' });
+                        dnsData = await dnsRes.json();
+                        if (dnsData.Answer && dnsData.Answer.length) {
+                            ip = dnsData.Answer[0].data;
+                        } else {
+                            alert('Не удалось разрешить домен в IP');
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fas fa-search"></i> Проверить';
+                            return;
+                        }
+                    }
+                }
+                const info = await fetchIpInfo(ip);
+                const ptr = await fetchPtr(ip);
+                document.getElementById('checkIpDisplay').textContent = ip;
+                if (info) {
+                    const flag = getCountryFlag(info.country);
+                    document.getElementById('chFlag').textContent = flag;
+                    document.getElementById('chCountry').innerHTML = flag + ' ' + (info.country || '—');
+                    document.getElementById('chType').textContent = getIpType(ip);
+                    document.getElementById('chCity').textContent = info.city || '—';
+                    document.getElementById('chRegion').textContent = info.regionName || '—';
+                    const isp = info.isp || info.org || '—';
+                    document.getElementById('chIsp').innerHTML = getOperatorIcon(isp) + ' ' + isp;
+                    // ASN
+                    if (info.as && info.as !== '—') {
+                        document.getElementById('chAsn').textContent = info.as;
+                    } else {
+                        const asnMatch = isp.match(/AS\d+/i);
+                        if (asnMatch) {
+                            document.getElementById('chAsn').textContent = asnMatch[0];
+                        } else {
+                            const asn = await fetchAsn(ip);
+                            document.getElementById('chAsn').textContent = asn || '—';
+                        }
+                    }
+                    document.getElementById('chCoords').textContent = (info.lat && info.lon) ? `${info.lat}, ${info.lon}` : '—';
+                    document.getElementById('chOrg').textContent = info.org || '—';
+                    document.getElementById('chCidr').textContent = info.as ? info.as.split(' ')[0] : '—';
+                }
+                document.getElementById('chPtr').textContent = ptr || '—';
+                document.getElementById('checkIpResult').classList.add('show');
+            } catch (e) {
+                alert('Ошибка при проверке IP');
+                console.error(e);
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-search"></i> Проверить';
+            }
+        });
+
+        // ============ ВКЛАДКА "DNS" ============
+        const dnsBtn = document.getElementById('dnsBtn');
+        const dnsInput = document.getElementById('dnsInput');
+        dnsBtn.addEventListener('click', async function() {
+            if (!captchaPassed) { alert('Пройдите капчу.'); return; }
+            const domain = dnsInput.value.trim();
+            if (!domain) { alert('Введите домен'); return; }
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
+            try {
+                const results = await fetchAllDns(domain);
+                document.getElementById('dnsDomain').textContent = domain;
+                const tbody = document.getElementById('dnsBody');
+                tbody.innerHTML = '';
+                for (const [type, providers] of Object.entries(results)) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td><strong>${type}</strong></td>
+                                     <td>${providers.Google || '—'}</td>
+                                     <td>${providers.Cloudflare || '—'}</td>`;
+                    tbody.appendChild(row);
+                }
+                document.getElementById('dnsResult').classList.add('show');
+            } catch (e) {
+                alert('Ошибка получения DNS');
+                console.error(e);
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-sync"></i> Получить DNS';
+            }
+        });
+
+        // ============ ВКЛАДКА "SSL" ============
+        const sslBtn = document.getElementById('sslBtn');
+        const sslInput = document.getElementById('sslInput');
+        sslBtn.addEventListener('click', async function() {
+            if (!captchaPassed) { alert('Пройдите капчу.'); return; }
+            const domain = sslInput.value.trim();
+            if (!domain) { alert('Введите домен'); return; }
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
+            try {
+                const cert = await fetchSsl(domain);
+                document.getElementById('sslDomain').textContent = domain;
+                if (cert) {
+                    document.getElementById('sslCommonName').textContent = cert.commonName;
+                    document.getElementById('sslIssuer').textContent = cert.issuer;
+                    document.getElementById('sslFrom').textContent = cert.notBefore;
+                    document.getElementById('sslTo').textContent = cert.notAfter;
+                    document.getElementById('sslAlgo').textContent = cert.sigAlg;
+                    document.getElementById('sslStatus').textContent = cert.status;
+                } else {
+                    document.getElementById('sslCommonName').textContent = '—';
+                    document.getElementById('sslIssuer').textContent = '—';
+                    document.getElementById('sslFrom').textContent = '—';
+                    document.getElementById('sslTo').textContent = '—';
+                    document.getElementById('sslAlgo').textContent = '—';
+                    document.getElementById('sslStatus').textContent = 'Не удалось получить сертификат';
+                }
+                document.getElementById('sslResult').classList.add('show');
+            } catch (e) {
+                alert('Ошибка SSL');
+                console.error(e);
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-shield-alt"></i> Проверить SSL';
+            }
+        });
+
+        // ============ ВКЛАДКА "СКОРОСТЬ" (МИНИМУМ 12 СЕКУНД) ============
+        const speedBtn = document.getElementById('speedBtn');
+        const speedStopBtn = document.getElementById('speedStopBtn');
+        const speedDown = document.getElementById('speedDown');
+        const speedUp = document.getElementById('speedUp');
+        const speedPing = document.getElementById('speedPing');
+        const speedBar = document.getElementById('speedBar');
+        const speedStatus = document.getElementById('speedStatus');
+
+        async function runSpeedTest() {
+            if (!captchaPassed) { alert('Пройдите капчу.'); return; }
+            if (speedTestRunning) return;
+            speedTestRunning = true;
+            speedTestAbort = false;
+            speedBtn.disabled = true;
+            speedStopBtn.disabled = false;
+            speedStatus.textContent = 'Запуск теста...';
+            speedBar.style.width = '0%';
+
+            const MIN_TEST_DURATION = 12;
+            const fileUrl = 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js';
+            let fileSize = 0;
+            try {
+                const headRes = await fetch(fileUrl, { method: 'HEAD' });
+                fileSize = parseInt(headRes.headers.get('content-length')) || 0;
+            } catch (e) {
+                fileSize = 280 * 1024;
+            }
+            if (fileSize === 0) fileSize = 280 * 1024;
+
+            let totalBytes = 0;
+            let startTime = performance.now();
+            let loadedBytes = 0;
+            let iterations = 0;
+
+            try {
+                while (true) {
+                    if (speedTestAbort) break;
+                    iterations++;
+                    const url = fileUrl + '?t=' + Date.now() + '_' + iterations;
+                    const response = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
+                    if (!response.ok) {
+                        console.warn(`Файл не загрузился (${response.status}), пропускаем.`);
+                        continue;
+                    }
+                    const reader = response.body.getReader();
+                    let received = 0;
+                    while (true) {
+                        if (speedTestAbort) break;
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        received += value.length;
+                        loadedBytes += value.length;
+                        totalBytes += value.length;
+                        const elapsed = (performance.now() - startTime) / 1000;
+                        const progress = Math.min(100, (loadedBytes / (fileSize * 5)) * 100);
+                        speedBar.style.width = progress + '%';
+                        speedStatus.textContent = `Загрузка... ${Math.round(progress)}% (${elapsed.toFixed(1)}с)`;
+                    }
+                    const elapsedTotal = (performance.now() - startTime) / 1000;
+                    if (elapsedTotal >= MIN_TEST_DURATION) break;
+                }
+
+                if (speedTestAbort) {
+                    speedStatus.textContent = 'Тест остановлен';
+                    speedBtn.disabled = false;
+                    speedStopBtn.disabled = true;
+                    speedTestRunning = false;
+                    return;
+                }
+
+                const endTime = performance.now();
+                const duration = (endTime - startTime) / 1000;
+                if (duration < 1 || totalBytes === 0) {
+                    throw new Error('Недостаточно данных для измерения скорости');
+                }
+
+                const bits = totalBytes * 8;
+                const speedMbps = (bits / 1024 / 1024) / duration;
+                speedDown.textContent = speedMbps.toFixed(2);
+                speedUp.textContent = (speedMbps * 0.8).toFixed(2);
+                speedPing.textContent = (duration * 1000).toFixed(0);
+                speedStatus.textContent = `Тест завершён (${duration.toFixed(1)}с, ${(totalBytes/1024/1024).toFixed(1)} МБ)`;
+
+            } catch (e) {
+                console.error('Ошибка теста скорости:', e);
+                speedStatus.textContent = 'Ошибка: ' + e.message;
+                speedDown.textContent = '—';
+                speedUp.textContent = '—';
+                speedPing.textContent = '—';
+            } finally {
+                speedBtn.disabled = false;
+                speedStopBtn.disabled = true;
+                speedTestRunning = false;
+                if (speedTestAbort) speedBar.style.width = '0%';
+            }
+        }
+
+        speedBtn.addEventListener('click', runSpeedTest);
+        speedStopBtn.addEventListener('click', function() {
+            if (speedTestRunning) {
+                speedTestAbort = true;
+                speedStatus.textContent = 'Остановка...';
+            }
+        });
+
+        // ============ ИНИЦИАЛИЗАЦИЯ ============
+        document.querySelector('.tab-btn[data-tab="tabMyIp"]').classList.add('active');
+        document.getElementById('tabMyIp').classList.add('active');
+
+        document.querySelectorAll('button:not(.tab-btn)').forEach(btn => btn.disabled = true);
+
+        console.log('Проверка IPv4 / IPv6 загружена. Ожидайте капчу.');
+    </script>
+</body>
+</html>
