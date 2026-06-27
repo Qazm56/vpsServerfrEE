@@ -1,0 +1,101 @@
+{
+  "dns": {
+    "servers": [
+      {
+        "address": "https://dns.google/dns-query",
+        "addressType": "DoH",
+        "domestic": false,
+        "outbound": "proxy",
+        "tag": "google-dns"
+      },
+      {
+        "address": "https://cloudflare-dns.com/dns-query",
+        "addressType": "DoH",
+        "domestic": false,
+        "outbound": "proxy",
+        "tag": "cloudflare-dns"
+      },
+      {
+        "address": "https://77.88.8.8/dns-query",
+        "addressType": "DoH",
+        "domestic": true,
+        "outbound": "direct",
+        "tag": "yandex-dns"
+      },
+      {
+        "address": "https://xbox-dns.ru/dns-query",
+        "addressType": "DoH",
+        "domestic": true,
+        "outbound": "direct",
+        "tag": "xbox-dns"
+      }
+    ],
+    "strategy": "prefer_ipv4",
+    "disableCache": false,
+    "disableFallback": false
+  },
+  "geoAssets": [
+    {
+      "name": "russian-wh",
+      "url": "https://api-2.catgroupmeow.xyz/files/ru-direct.dat",
+      "type": "geosite"
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "proxy",
+      "type": "selector",
+      "outbounds": []
+    },
+    {
+      "tag": "direct",
+      "type": "direct",
+      "settings": {}
+    },
+    {
+      "tag": "block",
+      "type": "block",
+      "settings": {}
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "condition": [
+          {
+            "type": "geosite",
+            "value": "geosite:russian-wh"
+          }
+        ],
+        "outbound": "direct",
+        "description": "Белый список russian-wh → напрямую (200 доменов)"
+      },
+      {
+        "condition": [
+          {
+            "type": "ip",
+            "value": [
+              "geoip:private"
+            ]
+          }
+        ],
+        "outbound": "direct",
+        "description": "Локальные сети → напрямую"
+      },
+      {
+        "condition": [],
+        "outbound": "proxy",
+        "description": "Всё остальное → через прокси"
+      }
+    ],
+    "domainStrategy": "prefer_ipv4",
+    "domainMatcher": "hybrid"
+  },
+  "settings": {
+    "enableClashApi": true,
+    "logLevel": "warning",
+    "mixedPort": 2334,
+    "allowLan": false,
+    "ipv6": false
+  }
+}
